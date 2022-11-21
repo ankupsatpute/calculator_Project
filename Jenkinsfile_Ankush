@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    environment {
+   PATH = "/opt/apache-maven-3.8.6/bin/:$PATH"
+    }
+    stages{
+        stage ('CheckOut')
+        {
+            steps{
+                 git 'https://github.com/ankupsatpute/calculator_Project.git'
+
+            }
+        }
+        
+       stage ('Build the Code')
+        {
+            steps
+            {
+            sh "mvn clean install"
+           
+            }
+        post {
+                always {
+                    junit '**/target/surefire-reports/TEST-*.xml'
+                    jacoco ()
+                }
+            }
+        }
+        stage('SonarQube analysis') {
+           steps{
+                withSonarQubeEnv('sonarqube-8.9.10.61524') { 
+                  sh "mvn sonar:sonar"
+                }
+             }
+          }
+        
+        stage ('Upload Jar to Nexus')
+        {
+            steps
+            {
+            nexusArtifactUploader artifacts: [
+               [artifactId: 'spring-boot-starter-parent', 
+               classifier: '', file: 'target/calculator-0.0.1-SNAPSHOT.jar', 
+               type: 'jar']
+                ],
+               credentialsId: 'nexus', 
+               groupId: 'org.springframework.boot', 
+               nexusUrl: '13.233.101.102:8081', 
+               nexusVersion: 'nexus3', 
+               protocol: 'http', 
+               repository: 'Demo_Cal', 
+               version: '2.3.1.RELEASE'
+             }
+        }
+
+    }
+}
